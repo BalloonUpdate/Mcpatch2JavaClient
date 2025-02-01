@@ -300,14 +300,16 @@ public class Main {
      */
     static Path searchDotMinecraft(Path basedir) {
         try {
-            Path d = basedir;
+            File d = basedir.toFile();
 
             for (int i = 0; i < 7; i++) {
-                if (d.toFile().getName().contains(".minecraft")) {
-                    return d;
+                for (File f : d.listFiles()) {
+                    if (f.getName().equals(".minecraft")) {
+                        return d.toPath();
+                    }
                 }
 
-                d = d.getParent();
+                d = d.getParentFile();
             }
         } catch (NullPointerException e) {
             return null;
@@ -359,7 +361,7 @@ public class Main {
 //                }
 //            }
         } catch (ParserException | IOException e) {
-            throw new McpatchBusinessException(e.getMessage());
+            throw new McpatchBusinessException(e);
         }
     }
 

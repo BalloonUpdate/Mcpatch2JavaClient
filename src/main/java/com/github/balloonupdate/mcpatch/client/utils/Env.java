@@ -59,7 +59,9 @@ public class Env {
             try {
                 String url = URLDecoder.decode(Env.class.getProtectionDomain().getCodeSource().getLocation().getFile(), "UTF-8").replace("\\", "/");
 
-                if (url.startsWith("/"))
+                boolean windows = System.getProperty("os.name").toLowerCase().contains("win");
+
+                if (windows && url.startsWith("/"))
                     url = url.substring(1);
 
                 if (url.endsWith(".class") && url.contains("!")) {
