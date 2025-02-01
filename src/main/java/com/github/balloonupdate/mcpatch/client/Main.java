@@ -113,7 +113,7 @@ public class Main {
                 SetupSwing.init();
 
             // 初始化UI
-            window = graphicsMode ? new McPatchWindow() : null;
+//            window = graphicsMode ? new McPatchWindow() : null;
 
             // 初始化窗口
             if (window != null) {
@@ -181,8 +181,7 @@ public class Main {
 
                     // 打印异常日志
                     try {
-                        Log.error(ex1.getClass().getName());
-                        Log.error(ex1.toString());
+                        Log.error(new McpatchBusinessException((Exception) ex1).toString());
                     } catch (Exception e) {
                         System.out.println("------------------------");
                         System.out.println(e);

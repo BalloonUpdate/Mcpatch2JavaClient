@@ -68,7 +68,7 @@ public class Work {
      */
     public boolean run() throws McpatchBusinessException {
         // 显示窗口
-        if (!config.silentMode)
+        if (window != null && !config.silentMode)
             window.show();
 
         try(Servers server = new Servers(config)) {
