@@ -59,6 +59,9 @@ public class Env {
             try {
                 String url = URLDecoder.decode(Env.class.getProtectionDomain().getCodeSource().getLocation().getFile(), "UTF-8").replace("\\", "/");
 
+                if (url.startsWith("/"))
+                    url = url.substring(1);
+
                 if (url.endsWith(".class") && url.contains("!")) {
                     String path = url.substring(0, url.lastIndexOf("!"));
 

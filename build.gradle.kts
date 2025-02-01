@@ -36,8 +36,8 @@ tasks.withType<ShadowJar> {
     manifest {
         attributes("Version" to archiveVersion.get())
         attributes("Git-Commit" to (gitCommitSha ?: ""))
-        attributes("Main-Class" to "com.github.balloonupdate.mcpatch.client")
-        attributes("Premain-Class" to "com.github.balloonupdate.mcpatch.client")
+        attributes("Main-Class" to "com.github.balloonupdate.mcpatch.client.Main")
+        attributes("Premain-Class" to "com.github.balloonupdate.mcpatch.client.Main")
     }
 
     archiveClassifier.set("")
