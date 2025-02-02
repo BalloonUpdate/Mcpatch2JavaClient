@@ -113,7 +113,7 @@ public class Main {
                 SetupSwing.init();
 
             // 初始化UI
-//            window = graphicsMode ? new McPatchWindow() : null;
+            window = graphicsMode ? new McPatchWindow() : null;
 
             // 初始化窗口
             if (window != null) {

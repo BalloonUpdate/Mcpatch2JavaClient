@@ -411,8 +411,6 @@ public class Work {
 
                 McpatchBusinessException ex = null;
 
-                window.setProgressBarValue(500);
-
                 for (int i = 0; i < config.reties + 1; i++) {
                     // 空文件不需要下载
                     if (f.length == 0) {
@@ -462,8 +460,10 @@ public class Work {
                         // 进度回退
                         totalDownloaded.addAndGet(-bytesCounter.get());
 
-                        window.setProgressBarText(String.format("%s/%s  -  %s/s", BytesUtils.convertBytes(totalDownloaded.get()), BytesUtils.convertBytes(totalBytes), speed.sampleSpeed2()));
-                        window.setProgressBarValue((int) (totalDownloaded.get() / (float) totalBytes * 1000));
+                        if (window != null) {
+                            window.setProgressBarText(String.format("%s/%s  -  %s/s", BytesUtils.convertBytes(totalDownloaded.get()), BytesUtils.convertBytes(totalBytes), speed.sampleSpeed2()));
+                            window.setProgressBarValue((int) (totalDownloaded.get() / (float) totalBytes * 1000));
+                        }
 
                         if (i != config.reties) {
                             Log.error("retrying");
