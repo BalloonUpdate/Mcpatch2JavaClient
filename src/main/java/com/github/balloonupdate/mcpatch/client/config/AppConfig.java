@@ -1,5 +1,6 @@
 package com.github.balloonupdate.mcpatch.client.config;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,21 +108,24 @@ public class AppConfig {
 
 
     public AppConfig(Map<String, Object> map) {
-        List<String> urls = getList(map, "urls");
-        String versionFilePath = getString(map, "version-file-path");
-        boolean allowError = getBoolean(map, "allow-error");
-        boolean showFinishMessage = getBoolean(map, "show-finish-message");
-        int autoCloseChangelogs = getInt(map, "auto-close-changelogs");
-        boolean silentMode = getBoolean(map, "silent-mode");
-        boolean disableTheme = getBoolean(map, "disable-theme");
-        String windowTitle = getString(map, "window-title");
-        String basePath = getString(map, "base-path");
-        int privateTimeout = getInt(map, "private-timeout");
-        Map<String, String> httpHeaders = getMap(map, "http-headers");
-        int httpTimeout = getInt(map, "http-timeout");
-        int reties = getInt(map, "retries");
-        boolean ignoreSSLCertificate = getBoolean(map, "ignore-ssl-cert");
-        boolean testMode = getBoolean(map, "test-mode");
+        List<String> urls = getList(map, "urls", null, new ArrayList<>());
+        String versionFilePath = getString(map, "version-file-path", null, "version-label.txt");
+        boolean allowError = getBoolean(map, "allow-error", null, false);
+        boolean showFinishMessage = getBoolean(map, "show-finish-message", null, true);
+        int autoCloseChangelogs = getInt(map, "auto-close-changelogs", null, 0);
+        boolean silentMode = getBoolean(map, "silent-mode", null, false);
+        boolean disableTheme = getBoolean(map, "disable-theme", null, false);
+        String windowTitle = getString(map, "window-title", null, "Mcpatch");
+        String basePath = getString(map, "base-path", null, "");
+        int privateTimeout = getInt(map, "private-timeout", null, 7000);
+        Map<String, String> httpHeaders = getMap(map, "http-headers", null, new HashMap<>());
+        int httpTimeout = getInt(map, "http-timeout", null, 7000);
+        int reties = getInt(map, "retries", "http-retries", 3);
+        boolean ignoreSSLCertificate = getBoolean(map, "ignore-ssl-cert", "http-ignore-certificate", false);
+        boolean testMode = getBoolean(map, "test-mode", null, false);
+
+//        if (urls.contains("webda"))
+//
 
         this.urls = urls;
         this.versionFilePath = versionFilePath;
@@ -141,15 +145,15 @@ public class AppConfig {
     }
 
     @SuppressWarnings("unchecked")
-    static <T> T getOption(Map<String, Object> map, String key, boolean allowNull, Class<T> clazz) {
+    static <T> T getOption(Map<String, Object> map, String key, String alterKey, T defaultValue, Class<T> clazz) {
         Object value = map.get(key);
 
         if (value == null) {
-            if (allowNull) {
-                return null;
-            } else {
-                throw new RuntimeException("配置文件中找不到 " + key + " 配置项");
-            }
+            value = map.get(alterKey);
+        }
+
+        if (value == null) {
+            return defaultValue;
         }
 
         if (!clazz.isInstance(value)) {
@@ -159,24 +163,24 @@ public class AppConfig {
         return clazz.isInstance(value) ? (T) value : null;
     }
 
-    static String getString(Map<String, Object> map, String key) {
-        return getOption(map, key, false, String.class);
+    static String getString(Map<String, Object> map, String key, String formerKey, String defaultValue) {
+        return getOption(map, key, formerKey, defaultValue, String.class);
     }
 
-    static boolean getBoolean(Map<String, Object> map, String key) {
-        return getOption(map, key, false, Boolean.class);
+    static boolean getBoolean(Map<String, Object> map, String key, String formerKey, boolean defaultValue) {
+        return getOption(map, key, formerKey, defaultValue, Boolean.class);
     }
 
-    static int getInt(Map<String, Object> map, String key) {
-        return getOption(map, key, false, Integer.class);
+    static int getInt(Map<String, Object> map, String key, String formerKey, int defaultValue) {
+        return getOption(map, key, formerKey, defaultValue, Integer.class);
     }
 
-    static List<String> getList(Map<String, Object> map, String key) {
-        return getOption(map, key, false, List.class);
+    static List<String> getList(Map<String, Object> map, String key, String formerKey, List<String> defaultValue) {
+        return getOption(map, key, formerKey, defaultValue, List.class);
     }
 
-    static Map<String, String> getMap(Map<String, Object> map, String key) {
-        Map<String, String> result = getOption(map, key, true, Map.class);
+    static Map<String, String> getMap(Map<String, Object> map, String key, String formerKey, Map<String, String> defaultValue) {
+        Map<String, String> result = getOption(map, key, formerKey, defaultValue, Map.class);
 
         return result != null ? result : new HashMap<>();
     }
