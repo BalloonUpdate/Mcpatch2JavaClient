@@ -295,7 +295,7 @@ public class Work {
 
             // 单独为移动文件输出一份日志，具体原因忘了，但是输出一下好像也没有坏处
             for (TempMoveFile mv : moveFiles) {
-                Log.debug(String.format("move files: {} => %s", mv.from, mv.to));
+                Log.debug(String.format("move files: %s => %s", mv.from, mv.to));
             }
 
             // 执行更新流程
