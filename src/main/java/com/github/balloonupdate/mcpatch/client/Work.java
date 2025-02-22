@@ -75,6 +75,8 @@ public class Work {
             return run2(server);
         } catch (McpatchBusinessException e) {
             throw e;
+        } catch (InterruptedException e) {
+            throw new McpatchBusinessException("BK", e);
         } catch (Exception e) {
             throw new McpatchBusinessException(e);
         }

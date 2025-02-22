@@ -170,15 +170,13 @@ public class Main {
                 window.destroy();
 
             // 处理工作线程里的异常
-            Throwable ex1 = ex[0];
+            McpatchBusinessException ex1 = (McpatchBusinessException) ex[0];
 
             if (ex1 != null) {
-                boolean a = ex[0] instanceof InterruptedException;
-                boolean b = ex[0] instanceof InterruptedIOException;
-                boolean c = ex[0] instanceof ClosedByInterruptException;
+                boolean a = ex1.getCause() instanceof InterruptedException;
+                boolean b = ex1.getCause() instanceof ClosedByInterruptException;
 
-                if (!a && !b && !c) {
-
+                if (!a && !b) {
                     // 打印异常日志
                     try {
                         Log.error(new McpatchBusinessException((Exception) ex1).toString());
@@ -191,9 +189,8 @@ public class Main {
                     if (graphicsMode) {
                         boolean sp = startMethod == StartMethod.Standalone;
 
-                        String className = ex1 instanceof McpatchBusinessException ? "" : ex1.getClass().getName() + "\n";
                         String errMsg = ex1.getMessage() != null ? ex1.getMessage() : "<No Exception Message>";
-                        String errMessage = BytesUtils.stringBreak(className + errMsg, 80, "\n");
+                        String errMessage = BytesUtils.stringBreak(errMsg, 80, "\n");
                         String title = "发生错误 " + Env.getVersion();
                         String content = errMessage + "\n";
                         content += !sp ? "点击\"是\"显示错误详情并停止启动Minecraft，" : "点击\"是\"显示错误详情并退出，";

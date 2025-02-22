@@ -53,9 +53,6 @@ public class McPatchWindow {
         window.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-
-                System.out.println("aaaaaaaaaaaaaaaaaaaaaaa");
-
                 if (onWindowClosing != null)
                     onWindowClosing.run(that);
                 else

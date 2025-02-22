@@ -4,11 +4,13 @@ import com.github.balloonupdate.mcpatch.client.config.AppConfig;
 import com.github.balloonupdate.mcpatch.client.data.Range;
 import com.github.balloonupdate.mcpatch.client.exceptions.McpatchBusinessException;
 import com.github.balloonupdate.mcpatch.client.logging.Log;
+import com.github.balloonupdate.mcpatch.client.network.impl.AlistProtocol;
 import com.github.balloonupdate.mcpatch.client.network.impl.HttpProtocol;
 import com.github.balloonupdate.mcpatch.client.network.impl.McpatchProtocol;
 import com.github.balloonupdate.mcpatch.client.network.impl.WebdavProtocol;
 import com.github.balloonupdate.mcpatch.client.utils.RuntimeAssert;
 
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +47,8 @@ public class Servers implements UpdatingServer {
                 servers.add(new McpatchProtocol(i, url, config));
             } else if (url.startsWith("webdav")) {
                 servers.add(new WebdavProtocol(i, url, config));
+            } else if (url.startsWith("alist")) {
+                servers.add(new AlistProtocol(i, url, config));
             } else {
                 throw new McpatchBusinessException("遇到无法识别的服务器链接：" + url);
             }
@@ -90,6 +94,11 @@ public class Servers implements UpdatingServer {
                 try {
                     return task.runTask(s);
                 } catch (McpatchBusinessException e) {
+                    // 用户打断了更新
+                    if (e.getCause() instanceof ClosedByInterruptException) {
+                        throw new McpatchBusinessException("用户打断了更新", (Exception) e.getCause());
+                    }
+
                     // 记录一次错误
                     ex = e;
 
@@ -101,9 +110,7 @@ public class Servers implements UpdatingServer {
                     if (times > 1) {
                         try {
                             Thread.sleep(3);
-                        } catch (InterruptedException e1) {
-                            throw new RuntimeException(e1);
-                        }
+                        } catch (InterruptedException ignored) {}
                     }
                 }
             }
