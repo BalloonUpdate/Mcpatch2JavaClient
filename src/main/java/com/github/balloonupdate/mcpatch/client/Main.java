@@ -58,7 +58,7 @@ public class Main {
     public static void premain(String agentArgs, Instrumentation ins) throws Throwable  {
         boolean graphicsMode = Desktop.isDesktopSupported();
 
-        if (agentArgs.equals("windowless"))
+        if (agentArgs != null && agentArgs.equals("windowless"))
             graphicsMode = false;
 
         AppMain(graphicsMode, StartMethod.JavaAgent, true, false);
