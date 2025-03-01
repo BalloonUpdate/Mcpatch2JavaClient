@@ -142,10 +142,21 @@ public class BytesUtils {
      * 从流中不断读取数据，直到填满buf或者遇到异常，否则一直读取
      */
     public static void readAll(byte[] buf, InputStream input) throws IOException {
-        int index = 0;
+        int offset = 0;
 
-        while (index < buf.length) {
-            index += input.read(buf, index, buf.length - index);
+        while (offset < buf.length) {
+            int len = buf.length - offset;
+
+            RuntimeAssert.isTrue(offset >= 0);
+            RuntimeAssert.isTrue(len >= 0);
+            RuntimeAssert.isTrue(len <= buf.length - offset);
+
+            int received = input.read(buf, offset, len);
+
+            if (received == -1)
+                throw new IOException("The io reached the end");
+
+            offset += received;
         }
     }
 

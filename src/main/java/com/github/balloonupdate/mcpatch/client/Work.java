@@ -336,12 +336,19 @@ public class Work {
                 }
 
                 // 2.判断文件时间
-                if ((mtime.toMillis() / 1000 - f.modified) > 5) {
+                long timeDiff = (mtime.toMillis() / 1000 - f.modified);
+
+//                Log.debug(f.path + " : " + timeDiff);
+
+                if (timeDiff < 5) {
                     continue;
                 }
 
                 // 3.对比hash
                 String hash;
+
+                if (window != null)
+                    window.setLabelSecondaryText(PathUtility.getFilename(f.path));
 
                 try {
                     hash = HashUtility.calculateHash(targetPath);
@@ -353,9 +360,16 @@ public class Work {
                     continue;
                 }
 
+                // 顺便修复文件修改时间
+                Files.setLastModifiedTime(targetPath, FileTime.from(f.modified, TimeUnit.SECONDS));
+
                 // 执行到这里的就是可以跳过的了
                 updateFiles.remove(i);
             }
+
+            // 清空文字
+            if (window != null)
+                window.setLabelSecondaryText("");
 
             // 尽可能跳过要创建的目录
             for (int i = createFolders.size() - 1; i >= 0; i--) {

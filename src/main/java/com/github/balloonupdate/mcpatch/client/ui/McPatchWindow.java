@@ -1,5 +1,7 @@
 package com.github.balloonupdate.mcpatch.client.ui;
 
+import com.github.kasuminova.GUI.SetupSwing;
+
 import javax.swing.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -24,13 +26,13 @@ public class McPatchWindow {
 
         window = new JFrame();
 
-        label = new JLabel("空标签空标签空标签空标签空标签空标签空标签空标签空标签");
-        label.setBounds(45, 15, 295, 20);
+        label = new JLabel("空标签空标签空标签空标签空标签空标签空签空标签空标签空签空标签空标签空标签空标签空标签");
+        label.setBounds(0, 15, 380, 20);
         label.setHorizontalAlignment(JLabel.CENTER);
         window.getContentPane().add(label);
 
-        labelSecondary = new JLabel("空标签空标签空标签空标签空标签空标签空标签空标签空标签");
-        labelSecondary.setBounds(45, 40, 295, 20);
+        labelSecondary = new JLabel("空标签空标签空标签空标签空标空标签空标签空标空标签空标签空标签空标签空标签空标签空标签");
+        labelSecondary.setBounds(0, 40, 380, 20);
         labelSecondary.setHorizontalAlignment(JLabel.CENTER);
         window.getContentPane().add(labelSecondary);
 
@@ -88,6 +90,7 @@ public class McPatchWindow {
     // 进度条上的文字
     public void setProgressBarText(String value) {
         progressBar.setString(value);
+        progressBar.setToolTipText(value);
     }
 
     // 进度条的值
@@ -99,10 +102,12 @@ public class McPatchWindow {
     // 标签上的文字
     public void setLabelText(String value) {
         label.setText(value);
+        label.setToolTipText(value);
     }
 
     // 副签上的文字
     public void setLabelSecondaryText(String value) {
+        labelSecondary.setToolTipText(value);
         labelSecondary.setText(value);
     }
 
@@ -113,6 +118,7 @@ public class McPatchWindow {
 
     // 开发时调试用
     public static void main(String[] args) {
+        SetupSwing.init();
         new McPatchWindow().show();
     }
 }
