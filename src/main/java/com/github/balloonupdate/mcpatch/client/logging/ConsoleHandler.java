@@ -39,7 +39,7 @@ public class ConsoleHandler implements LogHandler {
         if (!message.tags.isEmpty())
             tags = String.join("/", message.tags);
 
-        prefix = String.format("[ %-5s ] %s", level.toString().toUpperCase(), tags);
+        prefix = String.format("[ %-5s ] %s ", level.toString().toUpperCase(), tags);
 
         String text = prefix + message.content.replaceAll("\n", "\n" + prefix);
 

@@ -68,7 +68,7 @@ public class FileHandler implements LogHandler {
         if (!message.tags.isEmpty())
             tags = String.join("/", message.tags);
 
-        String prefix = String.format("[ %s %-5s ] %s", ts, level, tags);
+        String prefix = String.format("[ %s %-5s ] %s ", ts, level, tags);
 
         String text = prefix + message.content;
 
