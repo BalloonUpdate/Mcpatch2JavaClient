@@ -53,22 +53,17 @@ public class FileHandler implements LogHandler {
         if (writer == null)
             return;
 
-        if (!message.newLine)
-        {
-            writer.print(message.content);
-            writer.flush();
-            return;
-        }
 
+        String indentText = "";
+
+        if (!message.indents.isEmpty())
+            indentText = String.join(" ", message.indents) + " ";
+
+        String appId = message.appIdentifier ? "Mcpatch" : "";
         String ts = fmt.format(System.currentTimeMillis());
         String level = message.level.name().toUpperCase();
 
-        String tags = "";
-
-        if (!message.tags.isEmpty())
-            tags = String.join("/", message.tags);
-
-        String prefix = String.format("[ %s %-5s ] %s ", ts, level, tags);
+        String prefix = String.format("%s[ %s %-5s ] %s", appId, ts, level, indentText);
 
         String text = prefix + message.content;
 

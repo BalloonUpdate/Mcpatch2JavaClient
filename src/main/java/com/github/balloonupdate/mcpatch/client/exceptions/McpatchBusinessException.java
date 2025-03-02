@@ -22,26 +22,30 @@ public class McpatchBusinessException extends Exception {
 
         Throwable cause = getCause();
 
+        sb.append(getMessage());
+        sb.append("\n");
+
         if (cause != null) {
-            sb.append(getMessage());
-            sb.append("\n");
             sb.append(stackTraceToString(cause));
         } else {
-            sb.append(getMessage());
-            sb.append("\n");
             sb.append(stackTraceToString(this));
         }
 
         return sb.toString();
     }
 
-    public static String stackTraceToString(Throwable e) {
+    /**
+     * 获取错误的调用堆栈并做成字符串返回
+     */
+    static String stackTraceToString(Throwable e) {
         StringBuilder sb = new StringBuilder();
 
         StackTraceElement[] frames = e.getStackTrace();
 
         for (int i = 0; i < frames.length; i++) {
-//            sb.append("  ");
+//            sb.append("    ");
+//            sb.append(i);
+//            sb.append(": ");
             sb.append(frames[i].toString());
             sb.append("\n");
         }

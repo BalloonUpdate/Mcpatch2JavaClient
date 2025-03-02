@@ -425,9 +425,6 @@ public class Work {
                 Path tempDirectory = f.tempPath.getParent();
                 Files.createDirectories(tempDirectory);
 
-                McpatchBusinessException ex = null;
-
-                for (int i = 0; i < config.reties + 1; i++) {
                     // 空文件不需要下载
                     if (f.length == 0) {
                         Files.createFile(f.tempPath);
@@ -443,36 +440,27 @@ public class Work {
 
                     AtomicLong bytesCounter = new AtomicLong();
 
-                    try {
-                        Range range = new Range(f.offset, f.offset + f.length);
-                        String desc = f.path + " in " + f.label;
+                    Range range = new Range(f.offset, f.offset + f.length);
+                    String desc = f.path + " in " + f.label;
 
-                        server.downloadFile(f.containerName, range, desc, f.tempPath, (packageLength, bytesReceived, lengthExpected) -> {
-                            // 计数
-                            bytesCounter.addAndGet(packageLength);
-                            totalDownloaded.addAndGet(packageLength);
-                            speed.feed(packageLength);
+                    server.downloadFile(f.containerName, range, desc, f.tempPath, (packageLength, bytesReceived, lengthExpected) -> {
+                        // 计数
+                        bytesCounter.addAndGet(packageLength);
+                        totalDownloaded.addAndGet(packageLength);
+                        speed.feed(packageLength);
 
-                            // 更新UI
-                            if (window != null) {
-                                long now2 = System.currentTimeMillis();
+                        // 更新UI
+                        if (window != null) {
+                            long now2 = System.currentTimeMillis();
 
-                                if (now2 - uiTimer.get() > 300) {
-                                    uiTimer.set(now2);
+                            if (now2 - uiTimer.get() > 300) {
+                                uiTimer.set(now2);
 
-                                    window.setProgressBarText(String.format("%s/%s  -  %s/s", BytesUtils.convertBytes(totalDownloaded.get()), BytesUtils.convertBytes(totalBytes), speed.sampleSpeed2()));
-                                    window.setProgressBarValue((int) (totalDownloaded.get() / (float) totalBytes * 1000));
-                                }
+                                window.setProgressBarText(String.format("%s/%s  -  %s/s", BytesUtils.convertBytes(totalDownloaded.get()), BytesUtils.convertBytes(totalBytes), speed.sampleSpeed2()));
+                                window.setProgressBarValue((int) (totalDownloaded.get() / (float) totalBytes * 1000));
                             }
-                        });
-
-                        // 修复文件 mtime
-                        Files.setLastModifiedTime(f.tempPath, FileTime.from(f.modified, TimeUnit.SECONDS));
-
-                        break;
-                    } catch (McpatchBusinessException e) {
-                        ex = e;
-
+                        }
+                    }, (fallback) -> {
                         // 进度回退
                         totalDownloaded.addAndGet(-bytesCounter.get());
 
@@ -480,15 +468,12 @@ public class Work {
                             window.setProgressBarText(String.format("%s/%s  -  %s/s", BytesUtils.convertBytes(totalDownloaded.get()), BytesUtils.convertBytes(totalBytes), speed.sampleSpeed2()));
                             window.setProgressBarValue((int) (totalDownloaded.get() / (float) totalBytes * 1000));
                         }
+                    });
 
-                        if (i != config.reties) {
-                            Log.error("retrying");
-                        }
-                    }
-                }
+                    // 修复文件 mtime
+                    Files.setLastModifiedTime(f.tempPath, FileTime.from(f.modified, TimeUnit.SECONDS));
 
-                if (ex != null)
-                    throw ex;
+
 
                 // 校验文件
                 String hash = HashUtility.calculateHash(f.tempPath);

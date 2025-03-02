@@ -80,7 +80,7 @@ public class AlistProtocol implements UpdatingServer {
     }
 
     @Override
-    public void downloadFile(String path, Range range, String desc, Path writeTo, OnDownload callback) throws McpatchBusinessException {
+    public void downloadFile(String path, Range range, String desc, Path writeTo, OnDownload callback, OnFail fallback) throws McpatchBusinessException {
 
     }
 

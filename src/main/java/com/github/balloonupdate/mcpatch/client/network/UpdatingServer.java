@@ -24,8 +24,9 @@ public interface UpdatingServer extends AutoCloseable {
      * @param path 文件的相对路径
      * @param writeTo 文件落盘位置
      * @param callback 报告下载进度的回调
+     * @param fallback 下载失败的事件，通常会进行重试
      */
-    void downloadFile(String path, Range range, String desc, Path writeTo, OnDownload callback) throws McpatchBusinessException;
+    void downloadFile(String path, Range range, String desc, Path writeTo, OnDownload callback, OnFail fallback) throws McpatchBusinessException;
 
 //    /**
 //     * 给一个文字打码，避免泄露账号密码登信息。通常用在日志中。目前此功能仅是预留，没有实装
@@ -43,9 +44,21 @@ public interface UpdatingServer extends AutoCloseable {
         /**
          * 当文件下载时，会通过这个方法报告下载进度
          * @param batch 这次传输了多少字节
-         * @param accumulated 本次文件下载共传输了多少字节
+         * @param downloaded 本次文件下载共传输了多少字节
          * @param total 本次文件下载一共需要传输w多少字节
          */
-        void on(long batch, long accumulated, long total);
+        void on(long batch, long downloaded, long total);
+    }
+
+    /**
+     * 下载文件失败的事件，提示UI回退进度条
+     */
+    @FunctionalInterface
+    interface OnFail {
+        /**
+         * 当文件下载时，会通过这个方法告知下载失败了，提醒UI回退进度条
+         * @param fallback 要回退多少字节
+         */
+        void on(long fallback);
     }
 }

@@ -65,9 +65,9 @@ public class Servers implements UpdatingServer {
     }
 
     @Override
-    public void downloadFile(String path, Range range, String desc, Path writeTo, OnDownload callback) throws McpatchBusinessException {
+    public void downloadFile(String path, Range range, String desc, Path writeTo, OnDownload callback, OnFail fallback) throws McpatchBusinessException {
         multipleAvailableServers(e -> {
-            e.downloadFile(path, range, desc, writeTo, callback);
+            e.downloadFile(path, range, desc, writeTo, callback, fallback);
 
             // 没办法这里必须要返回一个东西，不然编译不通过
             return 114514;
@@ -84,16 +84,25 @@ public class Servers implements UpdatingServer {
     {
         McpatchBusinessException ex = null;
 
+        // 记录第几次出错
+        int errorTimes = 0;
+
         // 每个服务器挨个试
         while (current < servers.size()) {
-            UpdatingServer s = servers.get(current);
+            UpdatingServer server = servers.get(current);
 
             int times = config.reties;
 
             while (--times >= 0) {
                 try {
-                    return task.runTask(s);
+                    return task.runTask(server);
                 } catch (McpatchBusinessException e) {
+                    try {
+                        server.close();
+                    } catch (Exception exc) {
+                        throw new McpatchBusinessException(exc);
+                    }
+
                     // 用户打断了更新
                     if (e.getCause() instanceof ClosedByInterruptException) {
                         throw new McpatchBusinessException("用户打断了更新", (Exception) e.getCause());
@@ -102,14 +111,19 @@ public class Servers implements UpdatingServer {
                     // 记录一次错误
                     ex = e;
 
+                    errorTimes += 1;
+                    Log.openIndent("第" + errorTimes + "次出错：");
+
                     Log.warn("");
                     Log.warn(ex.toString());
                     Log.warn("retry " + times + "...");
 
+                    Log.closeIndent();
+
                     // 不是最后一次机会的话就等待一下下
-                    if (times > 1) {
+                    if (times > 0) {
                         try {
-                            Thread.sleep(3);
+                            Thread.sleep(3000);
                         } catch (InterruptedException ignored) {}
                     }
                 }

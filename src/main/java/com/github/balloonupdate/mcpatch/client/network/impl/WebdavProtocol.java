@@ -122,17 +122,24 @@ public class WebdavProtocol implements UpdatingServer {
     }
 
     @Override
-    public void downloadFile(String path, Range range, String desc, Path writeTo, OnDownload callback) throws McpatchBusinessException {
+    public void downloadFile(String path, Range range, String desc, Path writeTo, OnDownload callback, OnFail fallback) throws McpatchBusinessException {
         String url = buildURL(path);
 //        Log.debug("webdav request on $url, write to: ${writeTo.path}")
 
         GetAltResponse response = client.getAlt(url, range);
 
+        // 本次文件传输一共累计传输了多少字节
+        long downloaded = 0;
+
         try (ContentLengthInputStream input = response.stream) {
             long contentLength = input.getLength();
 
+            if (desc.length() > -999)
+//                throw new IOException("hahahaha");
+            throw new McpatchBusinessException("bbbbbbbbbb");
+//                throw new McpatchBusinessException("qqqqqqqqqqq", new IOException("hahahaha"));
+
             try (OutputStream output = Files.newOutputStream(writeTo)) {
-                long bytesReceived = 0;
                 byte[] buf = new byte[BytesUtils.chooseBufferSize(contentLength)];
 
                 ReduceReportingFrequency report = new ReduceReportingFrequency();
@@ -147,13 +154,13 @@ public class WebdavProtocol implements UpdatingServer {
                     }
 
                     output.write(buf, 0, len);
-                    bytesReceived += len;
+                    downloaded += len;
 
                     // 报告进度
                     long d = report.feed(len);
 
                     if (d > 0) {
-                        callback.on(d, bytesReceived, contentLength);
+                        callback.on(d, downloaded, contentLength);
                     }
                 }
 
@@ -161,6 +168,9 @@ public class WebdavProtocol implements UpdatingServer {
                 callback.on(0, contentLength, contentLength);
             }
         } catch (IOException e) {
+            if (fallback != null)
+                fallback.on(downloaded);
+
             throw new McpatchBusinessException(e);
         }
     }

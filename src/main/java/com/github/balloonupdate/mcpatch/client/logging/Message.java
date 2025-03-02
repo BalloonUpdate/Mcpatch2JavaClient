@@ -22,12 +22,13 @@ public class Message {
     public String content;
 
     /**
-     * 日志的标签
+     * 缩进文字，支持多层
      */
-    public List<String> tags;
+    public List<String> indents;
 
     /**
-     * 日志后面是否要换行
+     * 应用程序标识
+     * @see "Log.appIdentifierEnabled"
      */
-    public Boolean newLine;
+    public boolean appIdentifier;
 }

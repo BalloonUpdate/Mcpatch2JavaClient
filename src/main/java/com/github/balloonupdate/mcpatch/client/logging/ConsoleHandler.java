@@ -27,22 +27,20 @@ public class ConsoleHandler implements LogHandler {
 
     @Override
     public void onMessage(Message message) {
-        if (!message.newLine) {
-            System.out.print(message.content);
-            System.out.flush();
-            return;
-        }
+        String indentText = "";
 
-        String prefix;
-        String tags = "";
+        if (!message.indents.isEmpty())
+            indentText = String.join(" ", message.indents) + " ";
 
-        if (!message.tags.isEmpty())
-            tags = String.join("/", message.tags);
+        String appId = message.appIdentifier ? "Mcpatch" : "";
+        String level = message.level.name().toUpperCase();
 
-        prefix = String.format("[ %-5s ] %s ", level.toString().toUpperCase(), tags);
+        String prefix = String.format("%s[ %-5s ] %s ", appId, level, indentText);
 
-        String text = prefix + message.content.replaceAll("\n", "\n" + prefix);
+        String text = prefix + message.content;
 
-        System.err.println(text);
+        text = text.replaceAll("\n", "\n" + prefix);
+
+        System.out.println(text);
     }
 }

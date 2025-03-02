@@ -103,7 +103,7 @@ public class Main {
 
             // 非独立进程启动时，使用标签标明日志所属模块
             if (startMethod == StartMethod.ModLoader || startMethod == StartMethod.JavaAgent)
-                Log.openTag("Mcpatch");
+                Log.setAppIdentifier(true);
 
             // 打印调试信息
             PrintEnvironmentInfo(graphicsMode, startMethod, baseDir, workDir);
@@ -179,10 +179,12 @@ public class Main {
                 if (!a && !b) {
                     // 打印异常日志
                     try {
-                        Log.error(new McpatchBusinessException((Exception) ex1).toString());
+                        Log.openIndent("Crash");
+                        Log.error(ex1.toString());
+                        Log.closeIndent();
                     } catch (Exception e) {
                         System.out.println("------------------------");
-                        System.out.println(e);
+                        System.out.println(ex1);
                     }
 
                     // 图形模式下弹框显示错误
@@ -404,9 +406,9 @@ public class Main {
         Log.info("启动方式: " + startMethod);
         Log.info("基本目录: " + baseDir);
         Log.info("工作目录: " + workDir);
-        Log.info("可执行文件所在目录: " + (Env.isDevelopment() ? "Dev" : Env.getJarPath()));
-        Log.info("应用版本: " + Env.getVersion() + " (" + Env.getGitCommit() + ")");
-        Log.info("Java虚拟机: " + jvmVendor + " (" + jvmVersion + ")");
-        Log.info("操纵系统: " + osName + "/" + osVersion + "/" + osArch);
+        Log.info("二进制文件目录: " + (Env.isDevelopment() ? "Dev" : Env.getJarPath()));
+        Log.info("软件版本: " + Env.getVersion() + " (" + Env.getGitCommit() + ")");
+        Log.info("虚拟机版本: " + jvmVendor + " (" + jvmVersion + ")");
+        Log.info("操作系统: " + osName + ", " + osVersion + ", " + osArch);
     }
 }

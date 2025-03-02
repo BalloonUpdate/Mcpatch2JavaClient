@@ -88,13 +88,14 @@ public class McpatchProtocol implements UpdatingServer {
     }
 
     @Override
-    public void downloadFile(String path, Range range, String desc, Path writeTo, OnDownload callback) throws McpatchBusinessException {
+    public void downloadFile(String path, Range range, String desc, Path writeTo, OnDownload callback, OnFail fallback) throws McpatchBusinessException {
         long size = request(path, range, desc);
+
+        // 本次文件传输一共累计传输了多少字节
+        long downloaded = 0;
 
         try {
             try (OutputStream output = Files.newOutputStream(writeTo)) {
-                long bytesReceived = 0;
-
                 byte[] buffer = new byte[BytesUtils.chooseBufferSize(size)];
 
                 ReduceReportingFrequency report = new ReduceReportingFrequency();
@@ -109,13 +110,13 @@ public class McpatchProtocol implements UpdatingServer {
 
                     output.write(buffer, 0, len);
 
-                    bytesReceived += len;
+                    downloaded += len;
 
                     // 报告进度
                     long d = report.feed(len);
 
                     if (d > 0) {
-                        callback.on(d, bytesReceived, size);
+                        callback.on(d, downloaded, size);
                     }
 
                 } while (remains > 0);
@@ -124,6 +125,9 @@ public class McpatchProtocol implements UpdatingServer {
                 callback.on(0, size, size);
             }
         } catch (IOException e) {
+            if (fallback != null)
+                fallback.on(downloaded);
+
             throw new McpatchBusinessException(e);
         }
     }
