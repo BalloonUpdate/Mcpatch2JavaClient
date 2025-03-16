@@ -80,7 +80,7 @@ public class Main {
      */
     static boolean AppMain(boolean graphicsMode, StartMethod startMethod, boolean enableLogFile, boolean disableTheme) throws Throwable {
         // 记录有无更新
-        final boolean[] hasUpdate = {false};
+        boolean hasUpdate = false;
 
         McPatchWindow window = null;
 
@@ -126,6 +126,14 @@ public class Main {
                     window.show();
             }
 
+//            // 点击窗口的叉时停止更新任务
+//            if (window != null) {
+//                window.onWindowClosing = w -> {
+//                    if (workThread.isAlive())
+//                        workThread.interrupt();
+//                };
+//            }
+
             Work work = new Work();
             work.window = window;
             work.config = config;
@@ -135,63 +143,29 @@ public class Main {
             work.graphicsMode = graphicsMode;
             work.startMethod = startMethod;
 
-            // 将更新任务单独放进单独线程执行，方便随时打断线程
-            final Throwable[] ex = { null };
-
-            Thread workThread = new Thread(() -> {
-                try {
-                    hasUpdate[0] = work.run();
-                } catch (McpatchBusinessException e) {
-                    ex[0] = e;
-                }
-            });
-
-            workThread.setDaemon(true);
-            workThread.setUncaughtExceptionHandler((ignored, e) -> ex[0] = e);
-
-            // 点击窗口的叉时停止更新任务
-            if (window != null) {
-                window.onWindowClosing = w -> {
-                    if (workThread.isAlive())
-                        workThread.interrupt();
-                };
-            }
-
-            // 启动更新任务
-            workThread.start();
             try {
-                workThread.join();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-
-            // 退出窗口
-            if (window != null)
-                window.destroy();
-
-            // 处理工作线程里的异常
-            McpatchBusinessException ex1 = (McpatchBusinessException) ex[0];
-
-            if (ex1 != null) {
-                boolean a = ex1.getCause() instanceof InterruptedException;
-                boolean b = ex1.getCause() instanceof ClosedByInterruptException;
+                // 启动更新任务
+                hasUpdate = work.run();
+            } catch (McpatchBusinessException e) {
+                boolean a = e.getCause() instanceof InterruptedException;
+                boolean b = e.getCause() instanceof ClosedByInterruptException;
 
                 if (!a && !b) {
                     // 打印异常日志
                     try {
                         Log.openIndent("Crash");
-                        Log.error(ex1.toString());
+                        Log.error(e.toString());
                         Log.closeIndent();
-                    } catch (Exception e) {
+                    } catch (Exception ex) {
                         System.out.println("------------------------");
-                        System.out.println(ex1);
+                        System.out.println(ex);
                     }
 
                     // 图形模式下弹框显示错误
                     if (graphicsMode) {
                         boolean sp = startMethod == StartMethod.Standalone;
 
-                        String errMsg = ex1.getMessage() != null ? ex1.getMessage() : "<No Exception Message>";
+                        String errMsg = e.getMessage() != null ? e.getMessage() : "<No Exception Message>";
                         String errMessage = BytesUtils.stringBreak(errMsg, 80, "\n");
                         String title = "发生错误 " + Env.getVersion();
                         String content = errMessage + "\n";
@@ -204,15 +178,15 @@ public class Main {
                         {
                             if (choice)
                             {
-                                DialogUtility.error("错误详情 " + Env.getVersion(), ex1.toString());
+                                DialogUtility.error("错误详情 " + Env.getVersion(), e.toString());
 
-                                throw ex1;
+                                throw e;
                             }
                         } else {
                             if (choice)
-                                DialogUtility.error("错误详情 " + Env.getVersion(), ex1.toString());
+                                DialogUtility.error("错误详情 " + Env.getVersion(), e.toString());
 
-                            throw ex1;
+                            throw e;
                         }
                     }
                 } else {
@@ -223,13 +197,14 @@ public class Main {
             if (window != null)
                 window.destroy();
 
-            Log.info("RAM: " + BytesUtils.convertBytes(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
+            if (startMethod != Main.StartMethod.Standalone)
+                Log.info("continue to start Minecraft!");
 
             // if (startMethod == StartMethod.Standalone)
             //     Runtime.getRuntime().exit(0);
         }
 
-        return hasUpdate[0];
+        return hasUpdate;
     }
 
     /**

@@ -611,9 +611,6 @@ public class Work {
             }
         }
 
-        if (startMethod != Main.StartMethod.Standalone)
-            Log.info("continue to start Minecraft!");
-
         return hasUpdate;
     }
 }
