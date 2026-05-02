@@ -1,5 +1,7 @@
 package com.github.balloonupdate.mcpatch.client.config;
 
+import com.github.balloonupdate.mcpatch.client.HardcodedConfig;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -165,6 +167,11 @@ public class AppConfig {
      */
     public String authUid;
 
+    /**
+     * 云端配置相关参数<p>
+     * 当 cloudConfig.enabled 为 false 或该字段为 null 时，云端配置拉取逻辑将被完全跳过
+     */
+    public CloudConfig cloudConfig;
 
     public AppConfig(Map<String, Object> map) {
         List<String> urls = getList(map, "urls", null, new ArrayList<>());
@@ -192,6 +199,9 @@ public class AppConfig {
         String authApiUrl = getString(map, "anti-hotlink-auth-url", null, "https://auth-api.mxzysoa.com/generate-auth-url");
         int authExpireTime = getInt(map, "anti-hotlink-expire-time", null, 3600);
         String authUid = getString(map, "anti-hotlink-uid", null, "0");
+
+        // 解析 cloud-config 段
+        CloudConfig cloudCfg = parseCloudConfig(map);
 
 //        if (urls.contains("webda"))
 //
@@ -221,6 +231,7 @@ public class AppConfig {
         this.authApiUrl = authApiUrl;
         this.authExpireTime = authExpireTime;
         this.authUid = authUid;
+        this.cloudConfig = cloudCfg;
     }
 
     @SuppressWarnings("unchecked")
@@ -251,11 +262,31 @@ public class AppConfig {
     }
 
     static int getInt(Map<String, Object> map, String key, String formerKey, int defaultValue) {
-        return getOption(map, key, formerKey, defaultValue, Integer.class);
+        Object value = map.get(key);
+        if (value == null) {
+            value = map.get(formerKey);
+        }
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        throw new RuntimeException("配置文件中找到 " + key + " 配置项了，但是配置项的类型不匹配。预期 Integer ，实际是 " + value.getClass().getSimpleName());
     }
 
     static long getLong(Map<String, Object> map, String key, String formerKey, long defaultValue) {
-        return getOption(map, key, formerKey, defaultValue, Long.class);
+        Object value = map.get(key);
+        if (value == null) {
+            value = map.get(formerKey);
+        }
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        throw new RuntimeException("配置文件中找到 " + key + " 配置项了，但是配置项的类型不匹配。预期 Long ，实际是 " + value.getClass().getSimpleName());
     }
 
     static List<String> getList(Map<String, Object> map, String key, String formerKey, List<String> defaultValue) {
@@ -266,5 +297,138 @@ public class AppConfig {
         Map<String, String> result = getOption(map, key, formerKey, defaultValue, Map.class);
 
         return result != null ? result : new HashMap<>();
+    }
+
+/**
+     * 构建 CloudConfig 实例。
+     * <p>
+     * 云端配置的所有敏感值（API地址、密钥、HMAC碎片等）
+     * 均从 {@link com.github.balloonupdate.mcpatch.client.HardcodedConfig} 硬编码读取，
+     * 不再从 YAML 配置文件中解析，防止敏感数据以明文形式存储在外部文件中。
+     * <p>
+     * YAML 中的 cloud-config 段如果存在，仅作为开关覆盖（enabled 字段），
+     * 其余字段均被忽略。
+     *
+     * @param map 顶层配置映射（仅用于检查 cloud-config.enabled 覆盖开关）
+     * @return CloudConfig 实例，如果硬编码配置未启用且 YAML 也未启用则返回 null
+     */
+    @SuppressWarnings("unchecked")
+    private static CloudConfig parseCloudConfig(Map<String, Object> map) {
+        // 所有云端配置均从 HardcodedConfig 读取（XOR+LCG 编码存储，防泄露）
+        CloudConfig cfg = new CloudConfig();
+
+        // 检查 YAML 中是否有 cloud-config.enabled 覆盖开关
+        // 如果 YAML 中显式设置 cloud-config.enabled: false，则禁用云端配置
+        Object cloudObj = map.get("cloud-config");
+        if (cloudObj instanceof Map) {
+            Map<String, Object> cloudMap = (Map<String, Object>) cloudObj;
+            Boolean yamlEnabled = getOption(cloudMap, "enabled", null, null, Boolean.class);
+            if (yamlEnabled != null && !yamlEnabled) {
+                // YAML 显式禁用，尊重此设置
+                return null;
+            }
+        }
+
+        // 从 HardcodedConfig 读取所有配置值
+        cfg.enabled = HardcodedConfig.isEnabled();
+        cfg.apiUrl = HardcodedConfig.getApiUrl();
+        cfg.apiKey = HardcodedConfig.getApiKey();
+        cfg.cacheFile = HardcodedConfig.getCacheFile();
+        cfg.cacheTtl = HardcodedConfig.getCacheTtl();
+        cfg.timeout = HardcodedConfig.getTimeout();
+        cfg.fallbackLocal = HardcodedConfig.isFallbackLocal();
+        cfg.verifySignature = HardcodedConfig.isVerifySignature();
+        cfg.certFingerprint = HardcodedConfig.getCertFingerprint();
+
+        // Layer 3: HMAC 密钥碎片化存储（从 HardcodedConfig 编码读取）
+        cfg.hmacFrag1 = HardcodedConfig.getHmacFrag1();
+        cfg.hmacFrag2 = HardcodedConfig.getHmacFrag2();
+        cfg.hmacFrag3 = HardcodedConfig.getHmacFrag3();
+
+        return cfg;
+    }
+
+    /**
+     * 云端配置内部类。
+     * <p>
+     * 所有字段值均由 {@link HardcodedConfig} 硬编码提供（XOR+LCG 编码存储），
+     * 不再从 YAML 配置文件中读取，防止敏感数据以明文形式泄露。
+     * <p>
+     * YAML 中的 cloud-config 段仅保留 enabled 开关作为覆盖（设为 false 可禁用云端配置），
+     * 其余字段（api-url、api-key、hmac-frag1/2/3 等）即使写在 YAML 中也会被忽略。
+     * <p>
+     * 密钥碎片化存储策略（Layer 3 防逆向）：<br>
+     * AES 密钥碎片（3个XOR碎片，还原公式：aesKey = frag1 XOR frag2 XOR frag3）：<br>
+     * &nbsp;&nbsp;Fragment1 → 嵌入 BuildInfo.BUILD_SIGNATURE（代码常量，伪装为构建签名）<br>
+     * &nbsp;&nbsp;Fragment2 → 嵌入 ThemeConfig.THEME_ACCENT_COLORS（代码常量，伪装为主题色值）<br>
+     * &nbsp;&nbsp;Fragment3 → 存储在本地隐藏文件 FragmentStore（.minecraft/assets/indexes/vXXXX）<br>
+     * HMAC 密钥碎片（3个XOR碎片，还原公式：hmacSecret = frag1 XOR frag2 XOR frag3）：<br>
+     * &nbsp;&nbsp;所有3个碎片均以 XOR+LCG 编码存储在 HardcodedConfig 中，运行时解码。
+     */
+    public static class CloudConfig {
+        /**
+         * 是否启用云端配置
+         */
+        public boolean enabled = false;
+
+        /**
+         * API地址，如 https://auth-config.mxzysoa.com/api/client
+         */
+        public String apiUrl = "";
+
+        /**
+         * API访问密钥
+         */
+        public String apiKey = "";
+
+        /**
+         * 本地缓存路径（相对运行目录）
+         */
+        public String cacheFile = ".mcpatch-config.enc";
+
+        /**
+         * 缓存有效期（秒）
+         */
+        public int cacheTtl = 3600;
+
+        /**
+         * HTTP请求超时（毫秒）
+         */
+        public int timeout = 7000;
+
+        /**
+         * 云端不可用时回退到本地
+         */
+        public boolean fallbackLocal = true;
+
+        /**
+         * 是否验证RSA-2048签名<p>
+         * 启用后会从 /api/security/public-key 动态获取公钥，验证配置完整性
+         */
+        public boolean verifySignature = false;
+
+        /**
+         * HTTPS 证书指纹（SHA-256，64位hex，用于证书锁定 Layer 6）<p>
+         * 为空时表示不启用证书锁定<p>
+         * 格式：纯hex小写无冒号，如 3a7b2cd45e6f...
+         */
+        public String certFingerprint = "";
+
+        /**
+         * HMAC-SHA256 密钥碎片1（Layer 3 碎片化防逆向）<p>
+         * 还原公式：hmacSecret = hmacFrag1 XOR hmacFrag2 XOR hmacFrag3<p>
+         * 每个碎片为64位hex字符串（32字节）
+         */
+        public String hmacFrag1 = "";
+
+        /**
+         * HMAC-SHA256 密钥碎片2
+         */
+        public String hmacFrag2 = "";
+
+        /**
+         * HMAC-SHA256 密钥碎片3
+         */
+        public String hmacFrag3 = "";
     }
 }
