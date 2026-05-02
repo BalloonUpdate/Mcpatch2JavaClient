@@ -1,6 +1,7 @@
 package com.github.balloonupdate.mcpatch.client;
 
 import com.github.balloonupdate.mcpatch.client.config.AppConfig;
+import com.github.balloonupdate.mcpatch.client.exceptions.CloudConfigException;
 import com.github.balloonupdate.mcpatch.client.exceptions.McpatchBusinessException;
 import com.github.balloonupdate.mcpatch.client.logging.ConsoleHandler;
 import com.github.balloonupdate.mcpatch.client.logging.FileHandler;
@@ -12,7 +13,6 @@ import com.github.balloonupdate.mcpatch.client.utils.DialogUtility;
 import com.github.balloonupdate.mcpatch.client.utils.Env;
 import com.github.kasuminova.GUI.SetupSwing;
 import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.parser.ParserException;
 
 import java.awt.*;
 import java.io.*;
@@ -21,9 +21,8 @@ import java.nio.channels.ClosedByInterruptException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Map;
-import java.util.jar.JarFile;
-import java.util.zip.ZipEntry;
 
 public class Main {
     /**
@@ -92,14 +91,40 @@ public class Main {
             Path progDir = getProgramDirectory();
             Path workDir = getWorkDirectory(progDir);
             AppConfig config = new AppConfig(readConfig(progDir.resolve("mcpatch.yml")));
-            Path baseDir = getUpdateDirectory(workDir, config);
 
-            // 初始化文件日志系统
+            // 初始化文件日志系统（在云端配置拉取之前初始化，确保 CloudConfig 日志也写入 mcpatch.log）
             String logFileName = graphicsMode ? "mcpatch.log" : "mcpatch.log.txt";
             Path logFilePath = progDir.resolve(logFileName);
 
             if (enableLogFile)
-                 InitFileLogging(logFilePath);
+                InitFileLogging(logFilePath);
+
+            // 静默初始化 Fragment3（首次启动自动生成，客户无需手动操作）
+            // 如果 Fragment3 本地文件不存在，从 HardcodedConfig 中的 AES 密钥计算并写入
+            if (config.cloudConfig != null && config.cloudConfig.enabled) {
+                ensureFragment3Initialized();
+            }
+
+            // 云端配置拉取（插入位置：创建 AppConfig 之后）
+            // 如果启用了云端配置，先从云端拉取完整的运行时配置，再合并到基础配置中
+            if (config.cloudConfig != null && config.cloudConfig.enabled) {
+                try {
+                    CloudConfigFetcher fetcher = new CloudConfigFetcher(config.cloudConfig);
+                    String cloudYaml = fetcher.fetch();
+                    if (cloudYaml != null && !cloudYaml.isEmpty()) {
+                        // 用云端配置覆盖/合并到 baseConfig（保留 cloud-config 段）
+                        AppConfig cloudConfig = parseYaml(cloudYaml);
+                        mergeConfig(config, cloudConfig);
+                        Log.info("[CloudConfig] 云端配置加载成功");
+                    }
+                } catch (CloudConfigException e) {
+                    Log.warn("[CloudConfig] 云端配置获取失败: " + e.getMessage());
+                } catch (Exception e) {
+                    Log.warn("[CloudConfig] 云端配置处理异常: " + e.getMessage());
+                }
+            }
+
+            Path baseDir = getUpdateDirectory(workDir, config);
 
             // 非独立进程启动时，使用标签标明日志所属模块
             if (startMethod == StartMethod.ModLoader || startMethod == StartMethod.JavaAgent)
@@ -314,50 +339,127 @@ public class Main {
         return null;
     }
 
-    // 从外部/内部读取配置文件并将内容返回
-    static Map<String, Object> readConfig(Path external) throws McpatchBusinessException {
+    // 从硬编码配置生成配置映射
+    // 所有配置均已硬编码到 HardcodedConfig 中，不再从外部 YAML 文件读取
+    static Map<String, Object> readConfig(Path external) {
+        return HardcodedConfig.buildConfigMap(null);
+    }
+
+    /**
+     * 静默初始化 Fragment3（首次启动自动生成）。
+     * <p>
+     * Fragment3 不在 JAR 内预置（安全隔离设计），但首次启动时需要自动生成，
+     * 否则 AES 解密会因碎片缺失而失败。此方法检查本地是否存在 Fragment3 文件，
+     * 若不存在则从 HardcodedConfig 中的 AES 密钥自动计算并写入，全程对用户无感。
+     * <p>
+     * 计算公式：Fragment3 = aesKey XOR Fragment1 XOR Fragment2
+     */
+    static void ensureFragment3Initialized() {
+        // 检查是否需要重新初始化：首次初始化 或 密钥轮换后重新生成
+        if (FragmentStore.isFragment3Initialized()) {
+            // Fragment3 已存在，检查是否与当前 AES 密钥一致（密钥轮换检测）
+            if (isFragment3KeyMatch()) {
+                return; // 密钥一致，无需操作
+            }
+            // 密钥不匹配（密钥已轮换），删除旧 Fragment3 并重新初始化
+            Log.info("[Main] 检测到 AES 密钥轮换，重新初始化 Fragment3");
+            try {
+                FragmentStore.removeFragment3();
+            } catch (Exception e) {
+                Log.warn("[Main] 删除旧 Fragment3 失败: " + e.getMessage());
+            }
+        }
+
         try {
-//            System.out.println("aaa " + external.toFile().getAbsolutePath());
-
-            Map<String, Object> result;
-
-            Yaml yaml = new Yaml();
-
-            // 如果外部配置文件存在，优先使用
-            if (Files.exists(external)) {
-                result = yaml.load(new String(Files.readAllBytes(external)));
+            // 从 HardcodedConfig 读取完整的 AES 密钥
+            String aesKeyHex = HardcodedConfig.getAesKey();
+            if (aesKeyHex == null || aesKeyHex.isEmpty() || aesKeyHex.length() != 64) {
+                Log.warn("[Main] AES 密钥未配置或格式无效，跳过 Fragment3 自动初始化");
+                return;
             }
 
-            // 如果内部配置文件存在，则读取内部的
-            else {
-                // 开发时必须要有外部配置文件
-                if (Env.isDevelopment()) {
-                    throw new McpatchBusinessException("找不到配置文件: mcpatch.yml，开发时必须要有配置文件");
+            // 读取 Fragment1 和 Fragment2
+            byte[] frag1 = SecureAesHelper.hexToBytes(BuildInfo.BUILD_SIGNATURE);
+            byte[] frag2 = ThemeConfig.getThemeSeed();
+            byte[] fullAesKey = SecureAesHelper.hexToBytes(aesKeyHex);
+
+            try {
+                // 验证长度一致性
+                if (frag1.length != 32 || frag2.length != 32 || fullAesKey.length != 32) {
+                    Log.warn("[Main] 碎片长度不一致，跳过 Fragment3 自动初始化"
+                            + " (frag1=" + frag1.length + ", frag2=" + frag2.length
+                            + ", aesKey=" + fullAesKey.length + ")");
+                    return;
                 }
 
-                // 读取内部配置文件
-                try (JarFile jar = new JarFile(Env.getJarPath().toFile())) {
-                    ZipEntry entry = jar.getJarEntry("mcpatch.yml");
+                // 计算 Fragment3 并写入本地文件
+                FragmentStore.initFragment3(frag1, frag2, fullAesKey);
+                Log.info("[Main] Fragment3 已自动初始化");
+            } finally {
+                Arrays.fill(frag1, (byte) 0);
+                Arrays.fill(frag2, (byte) 0);
+                Arrays.fill(fullAesKey, (byte) 0);
+            }
+        } catch (Exception e) {
+            Log.warn("[Main] Fragment3 自动初始化失败: " + e.getMessage());
+        }
+    }
 
-                    try (InputStream stream = jar.getInputStream(entry)) {
-                        result = yaml.load(stream);
+    /**
+     * 检查现有 Fragment3 是否与当前 HardcodedConfig 中的 AES 密钥一致。
+     * <p>
+     * 通过比较两者还原出的 AES 密钥指纹来判断是否匹配。
+     * 用于检测密钥轮换场景：当 ε12 更新后，旧的 Fragment3 应被替换。
+     *
+     * @return true 如果 Fragment3 还原出的密钥与当前 AES 密钥一致
+     */
+    static boolean isFragment3KeyMatch() {
+        try {
+            // 方法1：比较当前碎片还原的密钥指纹与 HardcodedConfig 中的密钥指纹
+            byte[] frag1 = SecureAesHelper.hexToBytes(BuildInfo.BUILD_SIGNATURE);
+            byte[] frag2 = ThemeConfig.getThemeSeed();
+            byte[] frag3 = FragmentStore.loadFragment3();
+
+            if (frag3 == null) {
+                return false;
+            }
+
+            try {
+                byte[] currentAesKey = KeySharding.assembleKey(frag1, frag2, frag3);
+                try {
+                    // 计算当前碎片还原出的密钥指纹
+                    java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+                    byte[] currentHash = digest.digest(currentAesKey);
+                    String currentFp = CloudCrypto.bytesToHex(currentHash);
+
+                    // 计算配置中的目标密钥指纹
+                    String aesKeyHex = HardcodedConfig.getAesKey();
+                    byte[] targetAesKey = SecureAesHelper.hexToBytes(aesKeyHex);
+                    try {
+                        byte[] targetHash = digest.digest(targetAesKey);
+                        String targetFp = CloudCrypto.bytesToHex(targetHash);
+
+                        boolean match = currentFp.equals(targetFp);
+                        if (!match) {
+                            Log.debug("[Main] Fragment3 密钥指纹不匹配"
+                                    + " (current=" + currentFp.substring(0, 16)
+                                    + ", target=" + targetFp.substring(0, 16) + ")");
+                        }
+                        return match;
+                    } finally {
+                        Arrays.fill(targetAesKey, (byte) 0);
                     }
+                } finally {
+                    Arrays.fill(currentAesKey, (byte) 0);
                 }
+            } finally {
+                Arrays.fill(frag1, (byte) 0);
+                Arrays.fill(frag2, (byte) 0);
+                Arrays.fill(frag3, (byte) 0);
             }
-
-//            System.out.println(result);
-
-            return result;
-//
-//            if (content.startsWith(":")) {
-//                try {
-//                    content = new String(Base64.getDecoder().decode(content.substring(1)));
-//                } catch (IllegalArgumentException e) {
-//                    throw new InvalidConfigFileException();
-//                }
-//            }
-        } catch (ParserException | IOException e) {
-            throw new McpatchBusinessException(e);
+        } catch (Exception e) {
+            Log.debug("[Main] Fragment3 密钥匹配检查失败: " + e.getMessage());
+            return false;
         }
     }
 
@@ -408,5 +510,62 @@ public class Main {
         Log.info("软件版本: " + Env.getVersion() + " (" + Env.getGitCommit() + ")");
         Log.info("虚拟机版本: " + jvmVendor + " (" + jvmVersion + ")");
         Log.info("操作系统: " + osName + ", " + osVersion + ", " + osArch);
+    }
+
+    /**
+     * 解析 YAML 字符串为 AppConfig 对象。
+     * 用于将云端拉取到的明文 YAML 配置转换为 AppConfig 实例。
+     *
+     * @param yaml YAML 格式的配置字符串
+     * @return AppConfig 实例
+     */
+    static AppConfig parseYaml(String yaml) {
+        Yaml ymlParser = new Yaml();
+        Map<String, Object> map = ymlParser.load(yaml);
+        return new AppConfig(map);
+    }
+
+    /**
+     * 将云端配置合并到基础配置中。
+     * <p>
+     * 合并策略：云端下发的 YAML 是完整的运行时配置（包含 urls、version-file-path 等），
+     * 直接用云端配置替换 baseConfig 中除 cloud-config 以外的所有字段。
+     * cloud-config 段始终以本地内置版本为准，不会被云端配置覆盖。
+     * 这样设计的好处是：云端可以完全控制运行时行为，而云端连接参数（密钥、地址）
+     * 始终由开发者掌控，不会被云端配置覆盖。
+     *
+     * @param baseConfig  基础配置（本地内置 mcpatch.yml），合并结果直接修改此对象
+     * @param cloudConfig 云端配置，用于覆盖基础配置中的运行时字段
+     */
+    static void mergeConfig(AppConfig baseConfig, AppConfig cloudConfig) {
+        // 云端下发的配置覆盖本地配置（保留 cloud-config 段）
+        baseConfig.urls = cloudConfig.urls;
+        baseConfig.versionFilePath = cloudConfig.versionFilePath;
+        baseConfig.allowError = cloudConfig.allowError;
+        baseConfig.showNoUpdateMessage = cloudConfig.showNoUpdateMessage;
+        baseConfig.showHasUpdateMessage = cloudConfig.showHasUpdateMessage;
+        baseConfig.autoCloseChangelogs = cloudConfig.autoCloseChangelogs;
+        baseConfig.silentMode = cloudConfig.silentMode;
+        baseConfig.disableTheme = cloudConfig.disableTheme;
+        baseConfig.windowTitle = cloudConfig.windowTitle;
+        baseConfig.basePath = cloudConfig.basePath;
+        baseConfig.privateTimeout = cloudConfig.privateTimeout;
+        baseConfig.httpHeaders = cloudConfig.httpHeaders;
+        baseConfig.httpTimeout = cloudConfig.httpTimeout;
+        baseConfig.reties = cloudConfig.reties;
+        baseConfig.ignoreSSLCertificate = cloudConfig.ignoreSSLCertificate;
+        baseConfig.ignoreHttpContentLength = cloudConfig.ignoreHttpContentLength;
+        baseConfig.testMode = cloudConfig.testMode;
+        baseConfig.maxThreads = cloudConfig.maxThreads;
+        baseConfig.chunkSize = cloudConfig.chunkSize;
+        baseConfig.maxChunks = cloudConfig.maxChunks;
+        baseConfig.enableChunkedDownload = cloudConfig.enableChunkedDownload;
+        baseConfig.antiHotlinkEnabled = cloudConfig.antiHotlinkEnabled;
+        baseConfig.authApiUrl = cloudConfig.authApiUrl;
+        baseConfig.authExpireTime = cloudConfig.authExpireTime;
+        baseConfig.authUid = cloudConfig.authUid;
+
+        // cloudConfig 段始终以本地内置版本为准，不覆盖
+        // baseConfig.cloudConfig 保持不变
     }
 }
