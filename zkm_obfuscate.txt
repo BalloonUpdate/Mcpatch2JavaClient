@@ -1,0 +1,68 @@
+// =====================================================================
+// ZKM 21.0.0 Maximum Strength Obfuscation Script v20
+// Mcpatch2JavaClient v4.0.0 — A+ Protection Level
+// =====================================================================
+
+__CLASSPATH_STATEMENTS__
+
+open "__INPUT_JAR__";
+
+// =====================================================================
+// 排除规则 — 仅保留JVM/反射必须的方法签名
+// 其他全部混淆（包括SecurityGuard/IntegrityChecker/BuildInfo等）
+// =====================================================================
+
+// Boot类不经过ZKM处理（已在Gradle中排除），保留原始类名和方法名
+// 以下exclude仅针对仍然由ZKM处理的entry包类
+
+// StringDecryptor: 保留 decrypt 方法（L8注入的invokestatic调用需要）
+exclude entry.StringDecryptor decrypt;
+
+// Main: 保留反射调用的入口方法
+exclude com.github.balloonupdate.mcpatch.client.Main premain;
+exclude com.github.balloonupdate.mcpatch.client.Main main;
+exclude com.github.balloonupdate.mcpatch.client.Main modloader;
+
+// BalloonUpdateMain: 保留modloader入口
+exclude com.github.balloonupdate.mcpatch.client.BalloonUpdateMain modloader;
+
+// =====================================================================
+// 反射访问声明 — 标记通过反射访问的成员
+// =====================================================================
+
+accessedByReflection entry.StringDecryptor decrypt;
+accessedByReflection com.github.balloonupdate.mcpatch.client.Main premain;
+accessedByReflection com.github.balloonupdate.mcpatch.client.Main main;
+accessedByReflection com.github.balloonupdate.mcpatch.client.Main modloader;
+
+// =====================================================================
+// 忽略缺失引用 + Trim 未使用类
+// =====================================================================
+
+ignoreMissingReferences;
+
+// Note: sardine ant classes excluded from ShadowJar packaging
+// No trim statement — trim causes FATAL with missing ant dependency
+// ZKM obfuscation alone provides sufficient protection
+
+// =====================================================================
+// 混淆 — 最高强度
+// =====================================================================
+
+obfuscate
+    obfuscateFlow=aggressive
+    encryptStringLiterals=none
+    encryptIntegerConstants=aggressive
+    exceptionObfuscation=heavy
+    autoReflectionHandling=normal
+    methodRenaming=false
+    mixedCaseClassNames=true
+    lineNumbers=delete
+    localVariables=delete
+    methodParameters=delete
+    obfuscateReferences=aggressive;
+
+// =====================================================================
+// 输出
+// =====================================================================
+saveAll "__OUTPUT_JAR__";

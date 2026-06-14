@@ -1,0 +1,36 @@
+[2026.06.14 02:24:54] Using "jrt:/" as path to java.lang.Object (D)
+[2026.06.14 02:24:54] Zelix KlassMaster 21.0.0
+                      Unlimited
+                      Cracked by https://leaks.tf
+                      
+                      Copyright 1997-2023 Zelix Pty Ltd (47 078 740 093)
+                      All rights reserved
+[2026.06.14 02:24:54] Preprocessing ZKM Script file "/tmp/zkm_test_full.txt"
+[2026.06.14 02:24:54] Parsing ZKM Script file "/tmp/zkm_test_full.txt"
+[2026.06.14 02:24:54] Using "jrt:/" as path to java.lang.Object (F)
+[2026.06.14 02:24:54] Setting classpath to "/tmp/snakeyaml.jar:/tmp/zkm-cp/json-20231013.jar:/tmp/zkm-cp/okhttp-4.12.0.jar:/tmp/zkm-cp/okio-jvm-3.6.0.jar:/tmp/zkm-cp/flatlaf-2.6.jar:/tmp/zkm-cp/flatlaf-intellij-themes-2.6.jar:/tmp/zkm-cp/sardine-5.12.jar:/tmp/zkm-cp/commons-codec-1.18.0.jar:/tmp/zkm-cp/httpclient-4.5.14.jar:/tmp/zkm-cp/httpcore-4.4.16.jar:/tmp/zkm-cp/commons-logging-1.2.jar:/tmp/zkm-cp/slf4j-api-2.0.7.jar:/tmp/zkm-cp/kotlin-stdlib-1.9.10.jar:/tmp/zkm-cp/kotlin-stdlib-jdk7-1.9.10.jar:/tmp/zkm-cp/kotlin-stdlib-jdk8-1.9.10.jar:/tmp/zkm-cp/kotlin-stdlib-common-1.9.10.jar:/tmp/zkm-cp/annotations-13.0.jar"
+	Adding 'jrt:/' to classpath. Must be able to find java.lang.Object.
+[2026.06.14 02:24:54] Opening classes...
+API calls detected that may not be handled automatically...
+In class entry.Boot
+    in method private static void _p(java.lang.String, java.lang.instrument.Instrumentation)
+        java.lang.Class.getMethod(java.lang.String, java.lang.Class[])
+        java.lang.Class.forName(java.lang.String)
+    in method private static void _m(java.lang.String[])
+        java.lang.Class.getMethod(java.lang.String, java.lang.Class[])
+        java.lang.Class.forName(java.lang.String)
+In class entry.IntegrityChecker
+    in method static boolean verifyCriticalClasses()
+        java.lang.Class.getName()
+
+61 classes opened in 0 seconds. 71260K of memory used. 105891K of memory free.
+
+[2026.06.14 02:24:55] Setting exclusions...
+[2026.06.14 02:24:55] Setting exclusions...
+[2026.06.14 02:24:55] Setting exclusions...
+[2026.06.14 02:24:55] Creating or adding to 'accessed by Reflection' set...
+[2026.06.14 02:24:55] Setting references to be ignored...
+[2026.06.14 02:24:55] Obfuscating classes...
+	Using internal default exclusions. File '/home/z/my-project/mcpatch2-client/defaultExclude.txt' not found
+[2026.06.14 02:24:56] Saving 61 classes in "/tmp/test-full.jar"
+[2026.06.14 02:24:56] Terminating normally.

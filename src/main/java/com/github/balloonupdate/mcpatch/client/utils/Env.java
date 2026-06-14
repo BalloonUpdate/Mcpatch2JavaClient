@@ -1,5 +1,7 @@
 package com.github.balloonupdate.mcpatch.client.utils;
 
+import entry.BuildInfo;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -22,10 +24,15 @@ public class Env {
     static Map<String, String> manifestCache = null;
 
     /**
-     * 获取版本号
+     * 获取版本号 — 优先从BuildInfo读取，回退到Manifest
      */
     public static String getVersion()
     {
+        // 优先使用BuildInfo（编译时注入，不依赖Manifest）
+        String buildInfoVersion = BuildInfo.VERSION;
+        if (buildInfoVersion != null && !buildInfoVersion.isEmpty() && !buildInfoVersion.equals("0.0.0")) {
+            return buildInfoVersion;
+        }
         return getManifestValue("Version", "0.0.0");
     }
 
@@ -33,6 +40,10 @@ public class Env {
      * 获取git的commit hash
      */
     public static String getGitCommit() {
+        String buildInfoCommit = BuildInfo.GIT_COMMIT;
+        if (buildInfoCommit != null && !buildInfoCommit.isEmpty() && !buildInfoCommit.equals("no-commit-hash")) {
+            return buildInfoCommit;
+        }
         return getManifestValue("Git-Commit", "no-commit-hash");
     }
 
